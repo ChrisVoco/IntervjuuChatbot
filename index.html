@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Intervjuu Assistent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --surface2:  #22263a;
+      --border:    #2e3350;
+      --accent:    #5b6af8;
+      --accent-h:  #7381ff;
+      --user-bg:   #1e3a5f;
+      --ai-bg:     #1e2538;
+      --text:      #e2e5f1;
+      --muted:     #8a91b4;
+      --green:     #3ecf8e;
+      --radius:    14px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── SETUP EKRAAN ── */
+    #setup-screen {
+      width: 100%;
+      max-width: 460px;
+      padding: 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      gap: 1.4rem;
+    }
+
+    #setup-screen h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    #setup-screen h1 span { color: var(--accent); }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: .4rem;
+    }
+
+    .form-group label {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .form-group input,
+    .form-group select {
+      padding: .65rem 1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus { border-color: var(--accent); }
+
+    .form-group select option { background: var(--surface2); }
+
+    .btn-start {
+      padding: .75rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+
+    .btn-start:hover { background: var(--accent-h); }
+
+    /* ── CHAT EKRAAN ── */
+    #chat-screen {
+      display: none;
+      flex-direction: column;
+      width: 100%;
+      max-width: 760px;
+      height: 100dvh;
+      padding: 0;
+    }
+
+    /* Päis */
+    #chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #chat-header .info { display: flex; flex-direction: column; gap: .1rem; }
+    #chat-header .title { font-weight: 700; font-size: 1rem; }
+    #chat-header .subtitle { font-size: .75rem; color: var(--muted); }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    #btn-restart {
+      padding: .4rem .9rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: .8rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    #btn-restart:hover { border-color: var(--accent); color: var(--text); }
+
+    /* Sõnumid */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      scroll-behavior: smooth;
+    }
+
+    #messages::-webkit-scrollbar { width: 5px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+    .msg {
+      display: flex;
+      gap: .75rem;
+      max-width: 82%;
+      animation: fadeUp .25s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.ai   { align-self: flex-start; }
+
+    .avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .85rem;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .msg.ai   .avatar { background: var(--accent); color: #fff; }
+    .msg.user .avatar { background: var(--user-bg); color: #a0c4ff; border: 1px solid #2a5a9a; }
+
+    .bubble {
+      padding: .75rem 1rem;
+      border-radius: var(--radius);
+      font-size: .93rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.ai   .bubble { background: var(--ai-bg);   border: 1px solid var(--border); border-top-left-radius: 4px; }
+    .msg.user .bubble { background: var(--user-bg); border: 1px solid #2a5a9a;       border-top-right-radius: 4px; }
+
+    /* Typing indikaator */
+    .typing-bubble {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      padding: .85rem 1.1rem;
+    }
+
+    .typing-bubble span {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: bounce 1.2s infinite;
+    }
+
+    .typing-bubble span:nth-child(2) { animation-delay: .2s; }
+    .typing-bubble span:nth-child(3) { animation-delay: .4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%            { transform: translateY(-6px); }
+    }
+
+    /* Sisestusala */
+    #input-area {
+      display: flex;
+      gap: .75rem;
+      padding: 1rem 1.5rem;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #user-input {
+      flex: 1;
+      padding: .75rem 1rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: .93rem;
+      resize: none;
+      outline: none;
+      min-height: 46px;
+      max-height: 140px;
+      font-family: inherit;
+      line-height: 1.5;
+      transition: border-color .2s;
+    }
+
+    #user-input:focus { border-color: var(--accent); }
+    #user-input:disabled { opacity: .5; cursor: not-allowed; }
+
+    #user-input::placeholder { color: var(--muted); }
+
+    #btn-send {
+      padding: .75rem 1.2rem;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      color: #fff;
+      font-size: 1.1rem;
+      transition: background .2s, transform .1s;
+      align-self: flex-end;
+    }
+
+    #btn-send:hover:not(:disabled) { background: var(--accent-h); }
+    #btn-send:active:not(:disabled) { transform: scale(.95); }
+    #btn-send:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* Vea sõnum */
+    .error-msg {
+      color: #ff6b6b;
+      font-size: .82rem;
+      text-align: center;
+      padding: .25rem;
+    }
+
+    @media (max-width: 600px) {
+      #setup-screen { padding: 1.5rem 1.2rem; }
+      #messages { padding: 1rem; }
+      #input-area { padding: .75rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── SETUP EKRAAN ── -->
+<div id="setup-screen">
+  <h1>🎯 <span>Intervjuu</span> Assistent</h1>
+
+  <div class="form-group">
+    <label>Sinu nimi</label>
+    <input id="inp-name" type="text" placeholder="Nt. Mari Mägi" autocomplete="off" />
+  </div>
+
+  <div class="form-group">
+    <label>Ametikoht / roll</label>
+    <input id="inp-position" type="text" placeholder="Nt. Fullstack arendaja" autocomplete="off" />
+  </div>
+
+  <div class="form-group">
+    <label>Tase</label>
+    <select id="inp-level">
+      <option value="junior">Junior (0–2 aasta)</option>
+      <option value="mid" selected>Mid-level (2–5 aasta)</option>
+      <option value="senior">Senior (5+ aasta)</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Keel</label>
+    <select id="inp-lang">
+      <option value="eesti" selected>Eesti keel</option>
+      <option value="inglise">English</option>
+    </select>
+  </div>
+
+  <button class="btn-start" onclick="startInterview()">Alusta intervjuud →</button>
+</div>
+
+<!-- ── CHAT EKRAAN ── -->
+<div id="chat-screen">
+  <div id="chat-header">
+    <div style="display:flex; align-items:center; gap:.75rem;">
+      <div class="status-dot"></div>
+      <div class="info">
+        <span class="title">Intervjueerija</span>
+        <span class="subtitle" id="header-subtitle">Junior Tarkvaraarendaja</span>
+      </div>
+    </div>
+    <button id="btn-restart" onclick="restartInterview()">↩ Uus intervjuu</button>
+  </div>
+
+  <div id="messages"></div>
+
+  <div id="input-area">
+    <textarea
+      id="user-input"
+      placeholder="Kirjuta vastus..."
+      rows="1"
+      onkeydown="handleKey(event)"
+      oninput="autoResize(this)"
+    ></textarea>
+    <button id="btn-send" onclick="sendMessage()" title="Saada (Enter)">➤</button>
+  </div>
+</div>
+
+<script>
+  // ── Olek ──
+  let messages  = [];   // [{role, content}]
+  let isLoading = false;
+  let position  = '';
+  let level     = '';
+  let language  = '';
+  let userName  = '';
+
+  // ── Alusta intervjuud ──
+  async function startInterview() {
+    userName = document.getElementById('inp-name').value.trim()    || 'Kandidaat';
+    position = document.getElementById('inp-position').value.trim() || 'Tarkvaraarendaja';
+    level    = document.getElementById('inp-level').value;
+    language = document.getElementById('inp-lang').value;
+
+    // Vaheta ekraan
+    document.getElementById('setup-screen').style.display = 'none';
+    const chat = document.getElementById('chat-screen');
+    chat.style.display = 'flex';
+
+    const lvlLabel = { junior:'Junior', mid:'Mid-level', senior:'Senior' }[level];
+    document.getElementById('header-subtitle').textContent = `${lvlLabel} · ${position}`;
+
+    // Algsõnum intervjueerijale (triggerdab esimese küsimuse)
+    messages = [];
+    addUserMessageToHistory(`Tere! Minu nimi on ${userName}. Olen valmis alustama.`);
+    await fetchAIReply();
+  }
+
+  // ── Saada kasutaja sõnum ──
+  async function sendMessage() {
+    const input = document.getElementById('user-input');
+    const text  = input.value.trim();
+    if (!text || isLoading) return;
+
+    input.value = '';
+    autoResize(input);
+    appendMessage('user', text);
+    addUserMessageToHistory(text);
+    await fetchAIReply();
+  }
+
+  // ── OpenAI API päring ──
+  async function fetchAIReply() {
+    setLoading(true);
+    const typingEl = showTyping();
+
+    try {
+      const res = await fetch('api.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, position, level, language }),
+      });
+
+      const data = await res.json();
+      typingEl.remove();
+
+      if (!res.ok || data.error) {
+        appendErrorMsg(data.error || `HTTP ${res.status}`);
+      } else {
+        appendMessage('ai', data.reply);
+        messages.push({ role: 'assistant', content: data.reply });
+      }
+    } catch (err) {
+      typingEl.remove();
+      appendErrorMsg('Ühenduse viga: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Abistavad funktsioonid ──
+  function addUserMessageToHistory(text) {
+    messages.push({ role: 'user', content: text });
+  }
+
+  function appendMessage(role, text) {
+    const box   = document.getElementById('messages');
+    const wrap  = document.createElement('div');
+    wrap.className = `msg ${role}`;
+
+    const initials = role === 'ai' ? 'AI' : userName.charAt(0).toUpperCase();
+    wrap.innerHTML = `
+      <div class="avatar">${initials}</div>
+      <div class="bubble">${escHtml(text)}</div>
+    `;
+    box.appendChild(wrap);
+    scrollToBottom();
+  }
+
+  function showTyping() {
+    const box  = document.getElementById('messages');
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ai';
+    wrap.innerHTML = `
+      <div class="avatar">AI</div>
+      <div class="bubble typing-bubble">
+        <span></span><span></span><span></span>
+      </div>
+    `;
+    box.appendChild(wrap);
+    scrollToBottom();
+    return wrap;
+  }
+
+  function appendErrorMsg(msg) {
+    const box = document.getElementById('messages');
+    const el  = document.createElement('div');
+    el.className = 'error-msg';
+    el.textContent = '⚠ ' + msg;
+    box.appendChild(el);
+    scrollToBottom();
+  }
+
+  function setLoading(state) {
+    isLoading = state;
+    document.getElementById('btn-send').disabled    = state;
+    document.getElementById('user-input').disabled  = state;
+    if (!state) document.getElementById('user-input').focus();
+  }
+
+  function scrollToBottom() {
+    const box = document.getElementById('messages');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function escHtml(str) {
+    return str
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  }
+
+  function restartInterview() {
+    document.getElementById('chat-screen').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'flex';
+    document.getElementById('messages').innerHTML = '';
+    messages = [];
+  }
+</script>
+</body>
+</html>
